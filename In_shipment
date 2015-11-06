@@ -13,7 +13,6 @@ END as material_group
 ,IF(po.model_part_file_id, (mpf.volume/om.volume) * oi.net_price * po.quantity ,oi.net_price * po.quantity)rev_sum
 ,date(max(d.create_time))
 ,yearweek(max(d.create_time)) week
-
 from production_order po
 join delta d
 on d.entity_id = po.production_order_id
