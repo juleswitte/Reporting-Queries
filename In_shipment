@@ -1,0 +1,33 @@
+select po.production_order_id
+, po.production_order_name
+,IF(po.model_part_file_id IS NULL, om.parts * po.quantity, po.quantity) Parts
+,IFNULL(mpf.volume_xsf, om.volume_xsf) * po.quantity/1000 "machine L"
+,IFNULL(mpf.maxx-mpf.minx, om.width) * IFNULL(mpf.maxy-mpf.miny, om.height) * IFNULL(mpf.maxz-mpf.minz, om.depth)*po.quantity/1000  as BBL
+,IFNULL(mpf.volume, om.volume)*po.quantity AS volume
+, CASE
+WHEN om.material_id IN (6, 25, 28, 62, 65, 66, 75, 76, 77, 78, 82, 93, 94, 95) THEN 'X-SF'
+WHEN om.material_id IN (60, 61, 114) THEN 'F(U)D'
+WHEN om.material_id IN (26, 27) THEN 'FCS'
+ELSE 'Other' 
+END as material_group
+,IF(po.model_part_file_id, (mpf.volume/om.volume) * oi.net_price * po.quantity ,oi.net_price * po.quantity)rev_sum
+,date(max(d.create_time))
+,yearweek(max(d.create_time)) week
+
+from production_order po
+join delta d
+on d.entity_id = po.production_order_id
+and d.status_id = 4
+and d.sub_status_id in(509,179,601,611,624,576) -- in_shipment
+and po.manufacturer_id in (22,63)
+join order_item oi
+   on po.order_item_id = oi.order_item_id
+join order_model om
+   on om.order_model_id = oi.item_id
+JOIN udesign_model_file umf
+ ON umf.model_id = om.model_id
+ AND umf.version = om.model_version
+LEFT JOIN model_part_file mpf
+      ON po.model_part_file_id = mpf.model_part_file_id
+where date(d.create_time) >=curdate()
+group by 1 -- eliminate double po counts
